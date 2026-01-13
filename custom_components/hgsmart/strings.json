@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "HGSmart Pet Feeder",
+        "description": "Enter your HGSmart account credentials",
+        "data": {
+          "username": "Username (Email)",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to HGSmart API",
+      "invalid_auth": "Invalid username or password",
+      "no_devices": "No devices found on this account",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "Account is already configured"
+    }
+  }
+}
