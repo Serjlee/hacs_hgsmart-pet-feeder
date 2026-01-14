@@ -11,6 +11,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import HGSmartDataUpdateCoordinator
+from .helpers import get_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,13 +72,7 @@ class HGSmartManualFeedPortions(CoordinatorEntity, NumberEntity):
         self._attr_native_max_value = 10
         self._attr_native_step = 1
         self._attr_mode = NumberMode.BOX
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device_id)},
-            "name": device_info["name"],
-            "manufacturer": "HGSmart",
-            "model": device_info["type"],
-            "sw_version": device_info.get("fwVersion"),
-        }
+        self._attr_device_info = get_device_info(device_id, device_info)
 
     @property
     def native_value(self) -> int:
@@ -121,13 +116,7 @@ class HGSmartFoodRemainingNumber(CoordinatorEntity, NumberEntity):
         self._attr_native_step = 1
         self._attr_native_unit_of_measurement = PERCENTAGE
         self._attr_mode = NumberMode.SLIDER
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device_id)},
-            "name": device_info["name"],
-            "manufacturer": "HGSmart",
-            "model": device_info["type"],
-            "sw_version": device_info.get("fwVersion"),
-        }
+        self._attr_device_info = get_device_info(device_id, device_info)
 
     @property
     def native_value(self) -> int | None:

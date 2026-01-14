@@ -12,6 +12,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import HGSmartDataUpdateCoordinator
+from .helpers import get_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,13 +48,7 @@ class HGSmartOnlineSensor(CoordinatorEntity, BinarySensorEntity):
         self._attr_unique_id = f"{device_id}_online"
         self._attr_name = f"{device_info['name']} Online"
         self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device_id)},
-            "name": device_info["name"],
-            "manufacturer": "HGSmart",
-            "model": device_info["type"],
-            "sw_version": device_info.get("fwVersion"),
-        }
+        self._attr_device_info = get_device_info(device_id, device_info)
 
     @property
     def is_on(self) -> bool:

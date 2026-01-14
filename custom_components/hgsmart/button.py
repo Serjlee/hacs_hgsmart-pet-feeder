@@ -11,6 +11,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .api import HGSmartApiClient
 from .const import DOMAIN
 from .coordinator import HGSmartDataUpdateCoordinator
+from .helpers import get_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,13 +55,7 @@ class HGSmartFeedButton(CoordinatorEntity, ButtonEntity):
         self._attr_unique_id = f"{device_id}_feed"
         self._attr_name = f"{device_info['name']} Feed"
         self._attr_icon = "mdi:food"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device_id)},
-            "name": device_info["name"],
-            "manufacturer": "HGSmart",
-            "model": device_info["type"],
-            "sw_version": device_info.get("fwVersion"),
-        }
+        self._attr_device_info = get_device_info(device_id, device_info)
 
     async def async_press(self) -> None:
         """Handle the button press."""
@@ -101,13 +96,7 @@ class HGSmartResetDesiccantButton(CoordinatorEntity, ButtonEntity):
         self._attr_unique_id = f"{device_id}_reset_desiccant"
         self._attr_name = f"{device_info['name']} Reset Desiccant"
         self._attr_icon = "mdi:air-filter"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device_id)},
-            "name": device_info["name"],
-            "manufacturer": "HGSmart",
-            "model": device_info["type"],
-            "sw_version": device_info.get("fwVersion"),
-        }
+        self._attr_device_info = get_device_info(device_id, device_info)
 
     async def async_press(self) -> None:
         """Handle the button press."""

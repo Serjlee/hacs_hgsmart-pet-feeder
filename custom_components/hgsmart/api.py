@@ -15,10 +15,18 @@ _LOGGER = logging.getLogger(__name__)
 class HGSmartApiClient:
     """API client for HGSmart devices."""
 
-    def __init__(self, username: str, password: str) -> None:
+    def __init__(
+        self,
+        username: str,
+        password: str,
+        locale: str = "it-IT",
+        timezone: str = "Europe/Rome",
+    ) -> None:
         """Initialize the API client."""
         self.username = username
         self.password = password
+        self.locale = locale
+        self.timezone = timezone
         self.access_token: str | None = None
         self.refresh_token: str | None = None
         self._session: aiohttp.ClientSession | None = None
@@ -38,8 +46,8 @@ class HGSmartApiClient:
         """Build standard headers for API calls."""
         headers = {
             "User-Agent": "Dart/3.6 (dart:io)",
-            "Accept-Language": "it-IT",
-            "Zoneid": "Europe/Rome",
+            "Accept-Language": self.locale,
+            "Zoneid": self.timezone,
             "Client": CLIENT_ID,
             "Wunit": "0",
             "Tunit": "0",
@@ -231,7 +239,7 @@ class HGSmartApiClient:
 
         result = await self._request("PUT", url, headers=headers, data=data)
 
-        if result and result.get("code") == 200:
+        if result:
             _LOGGER.info("Feed command sent successfully to %s (%d portions)", device_id, portions)
             return True
         return False
@@ -241,7 +249,7 @@ class HGSmartApiClient:
         url = f"{BASE_URL}/app/device/feeder/desiccant/{device_id}"
         result = await self._request("PUT", url)
 
-        if result and result.get("code") == 200:
+        if result:
             _LOGGER.info("Desiccant reset successfully for %s", device_id)
             return True
         return False
@@ -263,7 +271,7 @@ class HGSmartApiClient:
 
         result = await self._request("PUT", url, json=payload)
 
-        if result and result.get("code") == 200:
+        if result:
             _LOGGER.info("Food remaining set to %d%% for %s", percentage, device_id)
             return True
         return False
