@@ -32,5 +32,17 @@
     "abort": {
       "already_configured": "Account is already configured"
     }
+  },
+  "services": {
+    "feed": {
+      "name": "Feed",
+      "description": "Trigger feeding with a specific number of portions.",
+      "fields": {
+        "portions": {
+          "name": "Portions",
+          "description": "Number of portions to dispense (1-10)."
+        }
+      }
+    }
   }
 }

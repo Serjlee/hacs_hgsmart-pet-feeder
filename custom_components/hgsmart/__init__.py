@@ -1,17 +1,34 @@
 """The HGSmart Pet Feeder integration."""
 import logging
 
+import voluptuous as vol
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers import device_registry as dr
+import homeassistant.helpers.config_validation as cv
 
 from .api import HGSmartApiClient
 from .const import DOMAIN, CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
 from .coordinator import HGSmartDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+# Service constants
+SERVICE_FEED = "feed"
+ATTR_DEVICE_ID = "device_id"
+ATTR_PORTIONS = "portions"
+
+# Service schema
+SERVICE_FEED_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_PORTIONS, default=1): vol.All(
+            vol.Coerce(int), vol.Range(min=1, max=10)
+        ),
+    }
+)
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
@@ -83,6 +100,78 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Add update listener to reload entry when options change
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+
+    # Register services
+    async def handle_feed_service(call: ServiceCall) -> None:
+        """Handle the feed service call."""
+        portions = call.data.get(ATTR_PORTIONS, 1)
+
+        # Get device IDs from target (HA passes this via call.data when using target selector)
+        target_devices = []
+        if "target" in call.data:
+            target = call.data["target"]
+            if "device_id" in target:
+                device_ids = target["device_id"]
+                if isinstance(device_ids, str):
+                    target_devices = [device_ids]
+                else:
+                    target_devices = device_ids
+
+        if not target_devices:
+            raise HomeAssistantError("No devices specified in target")
+
+        _LOGGER.info("Feed service called for devices %s with %d portions", target_devices, portions)
+
+        # Process each target device
+        for device_id in target_devices:
+            # Extract the actual device_id from the HA device identifier
+            # The device_id in target is the HA device registry ID, not our device_id
+            dev_reg = dr.async_get(hass)
+            device = dev_reg.async_get(device_id)
+
+            if not device:
+                _LOGGER.error("Device %s not found in device registry", device_id)
+                continue
+
+            # Find our device_id from the device identifiers
+            our_device_id = None
+            for identifier in device.identifiers:
+                if identifier[0] == DOMAIN:
+                    our_device_id = identifier[1]
+                    break
+
+            if not our_device_id:
+                _LOGGER.error("Could not find device identifier for %s", device_id)
+                continue
+
+            # Find the API client for this device
+            api_client = None
+            for entry_id, entry_data in hass.data[DOMAIN].items():
+                if isinstance(entry_data, dict) and "coordinator" in entry_data:
+                    coordinator = entry_data["coordinator"]
+                    if our_device_id in coordinator.data:
+                        api_client = entry_data["api"]
+                        break
+
+            if not api_client:
+                raise HomeAssistantError(f"API client not found for device {our_device_id}")
+
+            # Send feed command
+            success = await api_client.send_feed_command(our_device_id, portions)
+
+            if not success:
+                raise HomeAssistantError(f"Failed to send feed command to device {our_device_id}")
+
+            _LOGGER.info("Feed command sent successfully to %s (%d portions)", our_device_id, portions)
+
+    # Register service only once (check if not already registered)
+    if not hass.services.has_service(DOMAIN, SERVICE_FEED):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_FEED,
+            handle_feed_service,
+            schema=SERVICE_FEED_SCHEMA,
+        )
 
     return True
 

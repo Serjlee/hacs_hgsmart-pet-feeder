@@ -1,0 +1,20 @@
+# Services for HGSmart Pet Feeder integration
+feed:
+  name: Feed Pets
+  description: Trigger feeding with a specific number of portions
+  target:
+    device:
+      integration: hgsmart
+  fields:
+    portions:
+      name: Portions
+      description: Number of portions to dispense (1-10)
+      required: false
+      default: 1
+      example: 2
+      selector:
+        number:
+          min: 1
+          max: 10
+          step: 1
+          mode: slider

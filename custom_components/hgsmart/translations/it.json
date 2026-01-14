@@ -24,5 +24,17 @@
     "abort": {
       "already_configured": "Account già configurato"
     }
+  },
+  "services": {
+    "feed": {
+      "name": "Dai da mangiare",
+      "description": "Attiva l'alimentazione con un numero specifico di porzioni.",
+      "fields": {
+        "portions": {
+          "name": "Porzioni",
+          "description": "Numero di porzioni da erogare (1-10)."
+        }
+      }
+    }
   }
 }
