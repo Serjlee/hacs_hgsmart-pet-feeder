@@ -39,10 +39,11 @@ class HGSmartDataUpdateCoordinator(DataUpdateCoordinator):
                 device_id = device["deviceId"]
                 stats = await self.api.get_feeder_stats(device_id)
                 attributes = await self.api.get_device_attributes(device_id)
-                
+
                 device_data[device_id] = {
                     "device_info": device,
                     "stats": stats or {},
+                    "attributes": attributes or {},
                 }
 
             return device_data
