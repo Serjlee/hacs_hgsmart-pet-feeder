@@ -13,7 +13,7 @@ CONF_UPDATE_INTERVAL = "update_interval"
 CONF_DEVICE_ROOMS = "device_rooms"
 
 # Default settings
-DEFAULT_UPDATE_INTERVAL = 5
+DEFAULT_UPDATE_INTERVAL = 15
 
 # Attributes
 ATTR_DEVICE_ID = "device_id"
