@@ -29,13 +29,31 @@ class HGSmartDataUpdateCoordinator(DataUpdateCoordinator):
         """Fetch data from API."""
         try:
             devices = await self.api.get_devices()
-            
+
             if not devices:
                 raise UpdateFailed("No devices found or API error")
 
+            # Filter to only S25D devices (only tested model)
+            supported_devices = []
+            for device in devices:
+                device_type = device.get("type", "")
+                if device_type == "S25D":
+                    supported_devices.append(device)
+                else:
+                    _LOGGER.warning(
+                        "Skipping unsupported device model '%s' (name: %s, id: %s). "
+                        "Only S25D model is currently supported.",
+                        device_type,
+                        device.get("name", "Unknown"),
+                        device.get("deviceId", "Unknown"),
+                    )
+
+            if not supported_devices:
+                raise UpdateFailed("No supported S25D devices found")
+
             # Fetch stats for each device
             device_data = {}
-            for device in devices:
+            for device in supported_devices:
                 device_id = device["deviceId"]
                 stats = await self.api.get_feeder_stats(device_id)
                 attributes = await self.api.get_device_attributes(device_id)
