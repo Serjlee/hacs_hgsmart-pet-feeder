@@ -25,3 +25,8 @@ ATTR_SCHEDULE_SLOT = "schedule_slot"
 ATTR_SCHEDULE_TIME = "schedule_time"
 ATTR_SCHEDULE_PORTIONS = "portions"
 ATTR_SCHEDULE_ENABLED = "enabled"
+
+# Schedule configuration
+SCHEDULE_SLOTS = 6  # Slots numbered 0-5
+MIN_PORTIONS = 1
+MAX_PORTIONS = 9

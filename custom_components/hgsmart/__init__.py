@@ -22,6 +22,8 @@ PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
     Platform.BUTTON,
     Platform.NUMBER,
+    Platform.SWITCH,
+    Platform.TIME,
 ]
 
 
@@ -91,20 +93,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Register services
     async def handle_feed_service(call: ServiceCall) -> None:
         """Handle the feed service call."""
+        # Log the call data for debugging
+        _LOGGER.info("Feed service called with full data: %s", call.data)
+
         portions = call.data.get(ATTR_PORTIONS, 1)
 
-        # Get device IDs from target (HA passes this via call.data when using device target selector)
+        # Get device IDs - Home Assistant can pass them in different ways
         target_device_ids = []
+
+        # Try to get from call.data["target"]["device_id"] (new style)
         if "target" in call.data:
             target = call.data["target"]
             if "device_id" in target:
                 device_ids = target["device_id"]
                 if isinstance(device_ids, str):
                     target_device_ids = [device_ids]
-                else:
+                elif isinstance(device_ids, list):
                     target_device_ids = device_ids
 
+        # Try to get from call.data["device_id"] directly (old style)
+        if not target_device_ids and "device_id" in call.data:
+            device_ids = call.data["device_id"]
+            if isinstance(device_ids, str):
+                target_device_ids = [device_ids]
+            elif isinstance(device_ids, list):
+                target_device_ids = device_ids
+
         if not target_device_ids:
+            _LOGGER.error("No devices found in service call. Call data: %s", call.data)
             raise HomeAssistantError("No devices specified in target")
 
         _LOGGER.info("Feed service called for devices %s with %d portions", target_device_ids, portions)
@@ -113,11 +129,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         dev_reg = dr.async_get(hass)
 
         # Process each target device
+        processed_any = False
         for ha_device_id in target_device_ids:
             # Get device from registry
             device = dev_reg.async_get(ha_device_id)
             if not device:
-                _LOGGER.error("Device %s not found in device registry", ha_device_id)
+                _LOGGER.warning("Device %s not found in device registry", ha_device_id)
                 continue
 
             # Find our device_id from the device identifiers
@@ -128,7 +145,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     break
 
             if not our_device_id:
-                _LOGGER.error("Could not find device identifier for %s", ha_device_id)
+                _LOGGER.warning(
+                    "Device %s (%s) is not an HGSmart pet feeder - skipping",
+                    device.name,
+                    ha_device_id
+                )
                 continue
 
             # Find the API client for this device
@@ -150,6 +171,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 raise HomeAssistantError(f"Failed to send feed command to device {our_device_id}")
 
             _LOGGER.info("Feed command sent successfully to %s (%d portions)", our_device_id, portions)
+            processed_any = True
+
+        # Check if we processed any valid devices
+        if not processed_any:
+            raise HomeAssistantError(
+                "None of the selected devices are HGSmart pet feeders. "
+                "Please select a device from the HGSmart integration."
+            )
 
     # Register service only once (check if not already registered)
     if not hass.services.has_service(DOMAIN, SERVICE_FEED):

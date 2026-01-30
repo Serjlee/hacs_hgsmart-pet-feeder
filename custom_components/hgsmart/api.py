@@ -276,3 +276,68 @@ class HGSmartApiClient:
             _LOGGER.info("Food remaining set to %d%% for %s", percentage, device_id)
             return True
         return False
+
+    async def set_schedule(
+        self,
+        device_id: str,
+        slot: int,
+        hour: int,
+        minute: int,
+        portions: int,
+        enabled: bool = True,
+    ) -> bool:
+        """Set a feeding schedule slot.
+
+        Args:
+            device_id: Device ID
+            slot: Slot number (0-5)
+            hour: Hour in 24-hour UTC format (0-23)
+            minute: Minute (0-59)
+            portions: Number of portions (1-9)
+            enabled: Whether the schedule is enabled
+
+        Returns:
+            True if successful, False otherwise
+        """
+        # Import here to avoid circular imports
+        from .helpers import build_plan_value
+
+        url = f"{BASE_URL}/app/device/attribute/{device_id}"
+
+        # Build command payload
+        current_time_ms = int(time.time() * 1000)
+        spoofed_uuid = uuid.uuid1(node=0x8DD711617773, clock_seq=0x8697)
+        message_id = spoofed_uuid.hex
+
+        command_value = build_plan_value(hour, minute, portions, slot, enabled)
+
+        payload_dict = {
+            "ctrl": {"identifier": "plan", "value": command_value},
+            "ctrl_time": str(current_time_ms),
+            "message_id": message_id,
+        }
+
+        # Use form data like other device commands
+        headers = self._get_headers()
+        if "Content-Type" in headers:
+            del headers["Content-Type"]
+
+        payload_json = json.dumps(payload_dict)
+
+        data = aiohttp.FormData()
+        data.add_field("command", payload_json, content_type="application/json")
+
+        result = await self._request("PUT", url, headers=headers, data=data)
+
+        if result:
+            _LOGGER.info(
+                "Schedule slot %d set to %02d:%02d UTC, %d portions, enabled=%s for %s",
+                slot,
+                hour,
+                minute,
+                portions,
+                enabled,
+                device_id,
+            )
+            return True
+        return False

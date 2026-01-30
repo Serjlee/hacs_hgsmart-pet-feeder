@@ -12,7 +12,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import HGSmartApiClient
-from .const import DOMAIN
+from .const import DOMAIN, MAX_PORTIONS, MIN_PORTIONS, SCHEDULE_SLOTS
 from .coordinator import HGSmartDataUpdateCoordinator
 from .helpers import get_device_info
 
@@ -45,6 +45,12 @@ async def async_setup_entry(
         entities.append(
             HGSmartFoodRemainingNumber(coordinator, api, device_id, device_info)
         )
+
+        # Add schedule portions entities for each slot
+        for slot in range(SCHEDULE_SLOTS):
+            entities.append(
+                HGSmartSchedulePortions(coordinator, api, device_id, device_info, slot)
+            )
 
     async_add_entities(entities)
 
@@ -158,6 +164,74 @@ class HGSmartFoodRemainingNumber(CoordinatorEntity, NumberEntity):
         else:
             _LOGGER.error("Failed to update food remaining")
             raise HomeAssistantError("Failed to update food remaining percentage")
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self.coordinator.last_update_success
+            and self.device_id in self.coordinator.data
+        )
+
+
+class HGSmartSchedulePortions(CoordinatorEntity, NumberEntity):
+    """Number entity for schedule portions per slot."""
+
+    def __init__(
+        self,
+        coordinator: HGSmartDataUpdateCoordinator,
+        api: HGSmartApiClient,
+        device_id: str,
+        device_info: dict[str, Any],
+        slot: int,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self.api = api
+        self.device_id = device_id
+        self.slot = slot
+        self._attr_unique_id = f"{device_id}_schedule_{slot}_portions"
+        self._attr_name = f"{device_info['name']} Schedule {slot + 1} Portions"
+        self._attr_icon = "mdi:food"
+        self._attr_native_min_value = MIN_PORTIONS
+        self._attr_native_max_value = MAX_PORTIONS
+        self._attr_native_step = 1
+        self._attr_mode = NumberMode.BOX
+        self._attr_device_info = get_device_info(device_id, device_info)
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the current portions value."""
+        device_data = self.coordinator.data.get(self.device_id)
+        if device_data and device_data.get("schedules"):
+            schedule = device_data["schedules"].get(self.slot)
+            if schedule:
+                return schedule.get("portions", 1)
+        return 1
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the portions value."""
+        device_data = self.coordinator.data.get(self.device_id)
+        if not device_data or not device_data.get("schedules"):
+            raise HomeAssistantError("Device data not available")
+
+        schedule = device_data["schedules"].get(self.slot, {})
+        enabled = schedule.get("enabled", False)
+        hour = schedule.get("hour", 8)
+        minute = schedule.get("minute", 0)
+
+        portions = int(value)
+
+        success = await self.api.set_schedule(
+            self.device_id, self.slot, hour, minute, portions, enabled
+        )
+
+        if success:
+            await self.coordinator.async_request_refresh()
+        else:
+            raise HomeAssistantError(
+                f"Failed to set portions for schedule slot {self.slot}"
+            )
 
     @property
     def available(self) -> bool:

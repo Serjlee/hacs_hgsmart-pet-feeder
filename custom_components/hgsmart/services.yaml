@@ -3,8 +3,7 @@ feed:
   name: Feed Pets
   description: Trigger feeding with a specific number of portions
   target:
-    device:
-      integration: hgsmart
+    device: {}
   fields:
     portions:
       name: Portions

@@ -7,7 +7,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import HGSmartApiClient
-from .const import DOMAIN
+from .const import DOMAIN, SCHEDULE_SLOTS
+from .helpers import parse_plan_value
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,10 +59,31 @@ class HGSmartDataUpdateCoordinator(DataUpdateCoordinator):
                 stats = await self.api.get_feeder_stats(device_id)
                 attributes = await self.api.get_device_attributes(device_id)
 
+                # Parse schedule slots from attributes
+                schedules = {}
+                if attributes:
+                    for slot in range(SCHEDULE_SLOTS):  # Slots 0-5
+                        plan_key = f"plan{slot}"
+                        plan_value = attributes.get(plan_key, "0")
+                        parsed = parse_plan_value(str(plan_value))
+
+                        if parsed:
+                            schedules[slot] = parsed
+                        else:
+                            # Default disabled slot
+                            schedules[slot] = {
+                                "enabled": False,
+                                "hour": 8,  # Default 8:00 UTC
+                                "minute": 0,
+                                "portions": 1,
+                                "slot": slot,
+                            }
+
                 device_data[device_id] = {
                     "device_info": device,
                     "stats": stats or {},
                     "attributes": attributes or {},
+                    "schedules": schedules,  # NEW: parsed schedule data
                 }
 
             return device_data
