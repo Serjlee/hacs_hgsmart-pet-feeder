@@ -2,9 +2,14 @@
 feed:
   name: Feed Pets
   description: Trigger feeding with a specific number of portions
-  target:
-    device: {}
   fields:
+    device_id:
+      name: Device
+      description: The pet feeder device to trigger
+      required: true
+      selector:
+        device:
+          integration: hgsmart
     portions:
       name: Portions
       description: Number of portions to dispense (1-10)
